@@ -1,0 +1,152 @@
+<Window x:Class="Klangkiste.OrdnerAuswahlDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ordner einlesen"
+        Width="640"
+        Height="600"
+        MinWidth="560"
+        MinHeight="520"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Margin="0,0,0,12"
+                   FontWeight="SemiBold"
+                   Text="Ordner und einzulesende Dateitypen auswählen" />
+
+        <!-- Navigationsebene: Laufwerk, Pfad, Hauptlaufwerk. -->
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Laufwerk:" />
+            <ComboBox x:Name="LaufwerkComboBox" Grid.Column="1" Margin="0,0,12,0"
+                      SelectionChanged="Laufwerk_SelectionChanged"
+                      ToolTip="Springt zur Wurzel des gewählten Laufwerks." />
+
+            <TextBlock Grid.Column="2" Margin="0,0,8,0" VerticalAlignment="Center" Text="Ordner:" />
+            <TextBox x:Name="PfadTextBox" Grid.Column="3" Margin="0,0,8,0"
+                     VerticalContentAlignment="Center"
+                     KeyDown="Pfad_KeyDown"
+                     ToolTip="Aktueller Ordner. Pfad eingeben und Enter drücken, um dorthin zu springen." />
+            <Button Grid.Column="4" Padding="12,4"
+                    Content="Als Hauptlaufwerk"
+                    Click="HauptlaufwerkUebernehmen_Click"
+                    ToolTip="Diesen Ordner als Startordner für den Einlese-Dialog merken." />
+        </Grid>
+
+        <TextBlock Grid.Row="2" Margin="0,0,0,4"
+                   Text="Doppelklick auf einen Ordner öffnet ihn. Mit Strg/Shift mehrere markieren und über die Buttons übernehmen." />
+
+        <!-- Browser: Unterordner der aktuellen Ebene. -->
+        <Grid Grid.Row="3" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <ListBox x:Name="UnterordnerListBox" Grid.Column="0"
+                     SelectionMode="Extended"
+                     MouseDoubleClick="Unterordner_MouseDoubleClick"
+                     ToolTip="Doppelklick = öffnen, „..&quot; = eine Ebene hoch." />
+
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Top" Width="150">
+                <Button Padding="12,4" Margin="0,0,0,6"
+                        HorizontalContentAlignment="Center"
+                        Content="Ebene hoch"
+                        Click="Hoch_Click"
+                        ToolTip="Eine Ebene nach oben." />
+                <Button Padding="12,4" Margin="0,0,0,6"
+                        HorizontalContentAlignment="Center"
+                        Content="Ebene hinzufügen"
+                        Click="DiesenOrdnerUebernehmen_Click"
+                        ToolTip="Den aktuell geöffneten Ordner übernehmen." />
+                <Button Padding="12,4"
+                        HorizontalContentAlignment="Center"
+                        Content="Markierte hinzufügen"
+                        Click="MarkierteUebernehmen_Click"
+                        ToolTip="Alle markierten Unterordner übernehmen." />
+            </StackPanel>
+        </Grid>
+
+        <!-- Gemerkte Ordner + Optionen. -->
+        <Grid Grid.Row="4" Margin="0,0,0,12">
+                        <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="140" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+                       Margin="0,0,0,4"
+                       FontWeight="SemiBold"
+                       Text="Zum Einlesen vorgemerkte Ordner:" />
+            <ListBox x:Name="OrdnerListBox" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                     Margin="0,0,8,0"
+                     SelectionMode="Extended" />
+            <Button Grid.Row="1" Grid.Column="2" Padding="12,4" VerticalAlignment="Top"
+                    Content="Entfernen"
+                    Click="OrdnerEntfernen_Click"
+                    ToolTip="Markierte Einträge aus der Liste nehmen." />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,8,10,0" VerticalAlignment="Center" Text="Dateitypen:" />
+            <ComboBox x:Name="DateitypComboBox" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
+                      Margin="0,8,0,0"
+                      SelectionChanged="Dateityp_SelectionChanged"
+                      SelectedIndex="3">
+                <ComboBoxItem Content="Nur Audioformate" />
+                <ComboBoxItem Content="Nur Videoformate" />
+                <ComboBoxItem Content="Alle Dateitypen (*.*)" />
+                <ComboBoxItem Content="Audio- und Videoformate" />
+                <ComboBoxItem Content="Benutzerdefinierter Filter" />
+            </ComboBox>
+
+            <TextBox x:Name="BenutzerdefinierterFilterTextBox"
+                     Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                     Margin="0,6,0,0"
+                     ToolTip="Beispiele: *.mp3;*.flac oder .cue;.m3u"
+                     Text="*.*"
+                     IsEnabled="False" />
+
+                        <CheckBox x:Name="UnterordnerEinbeziehenCheckBox"
+                      Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
+                      Margin="0,8,0,0"
+                      Content="Unterordner einbeziehen"
+                      IsChecked="True" />
+
+            <CheckBox x:Name="DoppelteZulassenCheckBox"
+                      Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2"
+                      Margin="0,6,0,0"
+                      Content="Bereits eingelesene Ordner trotzdem zulassen"
+                      ToolTip="Wenn nicht angehakt, werden Ordner, die bereits in der Sammlung sind, beim Hinzufügen übersprungen." />
+        </Grid>
+
+        <StackPanel Grid.Row="5"
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal">
+            <Button Width="90" Margin="0,0,8,0" Content="Einlesen" IsDefault="True" Click="Einlesen_Click" />
+            <Button Width="90" Content="Abbrechen" IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>

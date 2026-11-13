@@ -1,0 +1,4 @@
+# Copilot Instructions
+
+## Projektrichtlinien
+- Projektanforderungen für Klangkiste: Ordner rekursiv einlesen; standardmäßig MP3, FLAC, WAV, OGG, WMA sowie MP4, AVI, MKV, MPG und MPEG berücksichtigen, zusätzlich benutzerdefinierte Dateifilter bzw. *.* ermöglichen; .mcd enthält keine Mediendateien, sondern eine portable Sammlung ähnlich .col/M3U mit Dateiverweisen und Metadaten; Duplikate erkennen und Benutzer über Aktualisieren/Beibehalten/Überspringen entscheiden lassen; Titel erst nach Auswahl eines Ordners im linken Baum rechts anzeigen; Wiedergabe über zwei vom Benutzer konfigurierbare externe Player, getrennt für Audio und Video.

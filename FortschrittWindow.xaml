@@ -1,0 +1,30 @@
+<Window x:Class="Klangkiste.FortschrittWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Klangkiste"
+        Width="380"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        WindowStyle="ToolWindow"
+        Icon="Klangkiste.ico">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="MeldungTextBlock"
+                   Grid.Row="0"
+                   Text="Daten werden verarbeitet …"
+                   Margin="0,0,0,14"
+                   TextWrapping="Wrap" />
+
+        <ProgressBar Grid.Row="1"
+                     Height="18"
+                     Minimum="0"
+                     Maximum="100"
+                     IsIndeterminate="True" />
+    </Grid>
+</Window>

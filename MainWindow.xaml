@@ -1,0 +1,172 @@
+﻿<Window x:Class="Klangkiste.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Klangkiste"
+        Title="Klangkiste" Height="600" Width="1000"
+        Icon="Klangkiste.ico">
+
+    <Window.Resources>
+                <HierarchicalDataTemplate x:Key="OrdnerTemplate" ItemsSource="{Binding Unterordner}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding IconGlyph}" FontFamily="Segoe UI Emoji" FontSize="14"
+                                   Margin="0,0,5,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </HierarchicalDataTemplate>
+
+        <ContextMenu x:Key="OrdnerContextMenu" x:Shared="False">
+            <MenuItem Header="Wiedergabe">
+                <MenuItem Header="Nur diesen Ordner" Click="WiedergabeOrdner_Click" />
+                <MenuItem Header="Diesen Ordner mit Unterordnern" Click="WiedergabeMitUnterordnern_Click" />
+            </MenuItem>
+                        <Separator />
+            <MenuItem Header="Aktualisieren">
+                <MenuItem Header="Gesamten Ordner" Click="OrdnerAktualisierenGesamt_Click" />
+                <MenuItem Header="Nur dieser Ordner" Click="OrdnerAktualisierenDieser_Click" />
+            </MenuItem>
+                        <MenuItem Header="Eintrag löschen" Click="EintragLoeschen_Click" />
+            <MenuItem Header="Von Medium löschen" Click="VonMediumLoeschen_Click" />
+            <MenuItem Header="Eigenschaften" Click="OrdnerEigenschaften_Click" />
+        </ContextMenu>
+
+        <ContextMenu x:Key="SpaltenContextMenu" x:Shared="False">
+            <MenuItem Header="Anpassen" Click="SpaltenAnpassen_Click" />
+        </ContextMenu>
+
+        <ContextMenu x:Key="DateiContextMenu" x:Shared="False">
+            <MenuItem Header="Abspielen" Click="DateiAbspielen_Click" />
+            <MenuItem Header="Auswahl anhängen (einreihen)" Click="AuswahlHinzufuegen_Click" />
+            <Separator />
+            <MenuItem Header="Auswahl aufheben" Click="AuswahlAufheben_Click" />
+            <Separator />
+            <MenuItem Header="Aus Sammlung löschen" Click="AusSammlungLoeschen_Click" />
+                        <MenuItem Header="Von Medium löschen" Click="DateiVomMediumLoeschen_Click" />
+            <Separator />
+            <MenuItem Header="Eigenschaften" Click="DateiEigenschaften_Click" />
+        </ContextMenu>
+
+        <Style x:Key="SpaltenHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="ContextMenu" Value="{StaticResource SpaltenContextMenu}" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+                <!-- 1. HIER WERDEN DIE ZEILEN DEFINIERT -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Obere Zeile: Werkzeugleiste -->
+            <RowDefinition Height="Auto"/>
+            <!-- Filterzeile: Suche/Filter -->
+            <RowDefinition Height="*"/>
+            <!-- Mittlere Zeile: Hauptbereich -->
+            <RowDefinition Height="Auto"/>
+            <!-- Untere Zeile: Statusleiste -->
+        </Grid.RowDefinitions>
+
+                <!-- 2. WERKZEUGLEISTE (Zeile 0) -->
+        <Border x:Name="HauptToolbar" Grid.Row="0" BorderThickness="0,0,0,1"
+                BorderBrush="#DDDDDD" Padding="2">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Content="Einstellungen" Margin="2" Click="Einstellungen_Click"/>
+                    <Button Content="Hilfe" Margin="2" Click="Hilfe_Click" />
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                                        <Button Content="Ordner einlesen" Margin="2" Click="OrdnerEinlesen_Click"/>
+                    <Separator Margin="4,0" />
+                    <Button x:Name="NeueSammlungButton" Content="Neue Sammlung" Margin="2"
+                            IsEnabled="False" Click="NeueSammlung_Click"/>
+                    <Button Content="Importieren" Margin="2" Click="Importieren_Click"/>
+                    <Button Content="Exportieren" Margin="2" Click="Exportieren_Click"/>
+                                        <Button x:Name="SammlungSpeichernButton" Content="Sammlung speichern" Margin="2"
+                                                IsEnabled="False" Click="SammlungSpeichern_Click"/>
+                                        <Separator Margin="4,0" />
+                                        <Button x:Name="OrdnerSortierenButton" Content="Ordner sortieren" Margin="2"
+                                                IsEnabled="False" Click="OrdnerSortieren_Click"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+                <!-- 2b. FILTERZEILE: Suche nach Dateiname, Titel, Artist, Album (Wildcards mit * und ?) -->
+        <Border Grid.Row="1" BorderThickness="0,0,0,1" BorderBrush="#DDDDDD" Padding="5,4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Dateiname:" VerticalAlignment="Center" Margin="2,0,4,0" />
+                <TextBox x:Name="FilterDateinameTextBox" Width="130" Margin="0,0,10,0"
+                         VerticalContentAlignment="Center" TextChanged="Filter_TextChanged" />
+                <TextBlock Text="Titel:" VerticalAlignment="Center" Margin="2,0,4,0" />
+                <TextBox x:Name="FilterTitelTextBox" Width="130" Margin="0,0,10,0"
+                         VerticalContentAlignment="Center" TextChanged="Filter_TextChanged" />
+                <TextBlock Text="Artist:" VerticalAlignment="Center" Margin="2,0,4,0" />
+                <TextBox x:Name="FilterArtistTextBox" Width="130" Margin="0,0,10,0"
+                         VerticalContentAlignment="Center" TextChanged="Filter_TextChanged" />
+                <TextBlock Text="Album:" VerticalAlignment="Center" Margin="2,0,4,0" />
+                <TextBox x:Name="FilterAlbumTextBox" Width="130" Margin="0,0,10,0"
+                         VerticalContentAlignment="Center" TextChanged="Filter_TextChanged" />
+                                <Button Content="Filter löschen" Margin="2,0,0,0" Padding="8,2" Click="FilterLoeschen_Click" />
+                <CheckBox x:Name="GanzeSammlungCheckBox" Content="Ganze Sammlung durchsuchen"
+                          VerticalAlignment="Center" Margin="12,0,0,0"
+                          Checked="GanzeSammlung_Changed" Unchecked="GanzeSammlung_Changed" />
+                <TextBlock Text="(* = beliebig, ? = ein Zeichen)" VerticalAlignment="Center"
+                           Margin="12,0,0,0" Foreground="Gray" />
+            </StackPanel>
+        </Border>
+
+        <!-- 3. HAUPTBEREICH MIT ZWEI SPALTEN (Zeile 2) -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                                <ColumnDefinition x:Name="OrdnerbaumSpalte" Width="250" MinWidth="150"/>
+                <!-- Linke Spalte: Ordnerstruktur -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- Mittlere Spalte: Der Schiebebalken -->
+                <ColumnDefinition Width="*"/>
+                <!-- Rechte Spalte: Die Musikdateien -->
+            </Grid.ColumnDefinitions>
+
+            <!-- LINKS: Der Ordnerbaum -->
+            <TreeView x:Name="Ordnerbaum" Grid.Column="0" Margin="5"
+                      ItemsSource="{Binding Stammordner}"
+                      ItemTemplate="{StaticResource OrdnerTemplate}"
+                      SelectedItemChanged="Ordnerbaum_SelectedItemChanged">
+                <TreeView.ItemContainerStyle>
+                    <Style TargetType="TreeViewItem">
+                        <Setter Property="ContextMenu" Value="{StaticResource OrdnerContextMenu}" />
+                    </Style>
+                </TreeView.ItemContainerStyle>
+            </TreeView>
+
+            <!-- MITTE: Der bewegliche Balken (GridSplitter) -->
+            <GridSplitter x:Name="Seitentrenner" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Stretch" Width="5" Background="#CCCCCC"
+                          DragCompleted="Splitter_DragCompleted" />
+
+            <!-- RECHTS: Die Dateiliste (Tabelle) -->
+                        <DataGrid x:Name="Dateiliste" Grid.Column="2" AutoGenerateColumns="False"
+                      CanUserAddRows="False" Margin="5"
+                      SelectionMode="Extended"
+                      SelectionUnit="FullRow"
+                      CanUserResizeRows="False"
+                      HeadersVisibility="Column"
+                      CanUserSortColumns="True"
+                      Sorting="Dateiliste_Sorting"
+                      ColumnHeaderStyle="{StaticResource SpaltenHeaderStyle}"
+                      ContextMenu="{StaticResource DateiContextMenu}"
+                      SelectionChanged="Dateiliste_SelectionChanged"
+                      PreviewMouseLeftButtonDown="Dateiliste_PreviewMouseLeftButtonDown"
+                      PreviewMouseRightButtonDown="Dateiliste_PreviewMouseRightButtonDown"
+                      MouseDoubleClick="Dateiliste_MouseDoubleClick" />
+        </Grid>
+
+                <!-- 4. STATUSLEISTE (Zeile 3) -->
+                <StatusBar x:Name="HauptStatusleiste" Grid.Row="3">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusText" Text="Bereit. 0 Ordner, 0 Dateien geladen." />
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="OrdnerDauerText" Text="Ordner: -" Margin="0,0,16,0" />
+                    <TextBlock x:Name="SammlungDauerText" Text="Sammlung: -" />
+                </StackPanel>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
