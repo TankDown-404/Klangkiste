@@ -4,17 +4,17 @@ Eine kleine Alternative zur bekannten MPEG Audio Collection, allerdings mit ein 
 
 ## Vorschau
 
-![Hauptfenster im hellen Modus](screens/KKHM.png)
+![Hauptfenster im hellen Modus](screens/KKHM.PNG)
 
-![Hauptfenster im dunklen Modus](screens/KKDM.png)
+![Hauptfenster im dunklen Modus](screens/KKDM.PNG)
 
-![Einstellungsfenster 1](screens/KKO1.png)
+![Einstellungsfenster 1](screens/KKO1.PNG)
 
-![Einstellungsfenster 2](screens/KKO2.png)
+![Einstellungsfenster 2](screens/KKO2.PNG)
 
-![Einstellungsfenster 3](screens/KKO3.png)
+![Einstellungsfenster 3](screens/KKO3.PNG)
 
-![Einstellungsfenster 4](screens/KKO4.png)
+![Einstellungsfenster 4](screens/KKO4.PNG)
 
 
 ## Welche Erweiterungen sind hinzugekommen?
