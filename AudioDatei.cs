@@ -77,8 +77,23 @@ namespace Klangkiste
                 }
 
                 // True, solange die Datei auf dem Datenträger existiert.
-                [XmlIgnore]
+                                [XmlIgnore]
                 public bool IstVorhanden => !string.IsNullOrWhiteSpace(Pfad) && System.IO.File.Exists(Pfad);
+
+                // ---- XML abspecken: leere / nicht gesetzte Felder NICHT schreiben ----
+                // Der XmlSerializer ruft ShouldSerialize<Name>() vor dem Schreiben einer
+                // Eigenschaft auf. Liefert es false, wird die Eigenschaft komplett weggelassen.
+                // Beim LADEN bleiben fehlende Felder einfach auf ihrem Default (string.Empty / 0),
+                // daher ist das Format abwärtskompatibel (alte .mcd laden weiterhin).
+                public bool ShouldSerializeTitel() => !string.IsNullOrEmpty(Titel);
+                public bool ShouldSerializeArtist() => !string.IsNullOrEmpty(Artist);
+                public bool ShouldSerializeAlbum() => !string.IsNullOrEmpty(Album);
+                public bool ShouldSerializeJahr() => !string.IsNullOrEmpty(Jahr);
+                public bool ShouldSerializeMedientyp() => !string.IsNullOrEmpty(Medientyp);
+                // Zahlenwerte: 0 = nicht gesetzt -> weglassen.
+                public bool ShouldSerializeBitrate() => Bitrate != 0;
+                public bool ShouldSerializeDauerSekunden() => DauerSekunden != 0;
+                public bool ShouldSerializeGroesseBytes() => GroesseBytes != 0;
 
                 private static string FormatiereGroesse(long bytes)
         {

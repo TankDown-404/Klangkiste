@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace Klangkiste
@@ -72,6 +73,19 @@ namespace Klangkiste
             // Völlig gleich in der Musterordnung: als Tiebraker die Kultur-sichere
             // Reihenfolge, damit z. B. "Ö" und "O" stabil bleiben.
             return string.Compare(links, rechts, StringComparison.CurrentCultureIgnoreCase);
+        }
+    }
+
+    // IComparer<string> für Dateinamen in natürlicher Reihenfolge. Wird zum Sortieren
+    // beim Einlesen/Speichern genutzt (OrderBy(..., Comparer)), damit die Reihenfolge in
+    // der .mcd der Anzeige entspricht.
+    internal sealed class NatuerlicherDateiComparer : IComparer<string>
+    {
+        public static readonly NatuerlicherDateiComparer Instanz = new();
+
+        public int Compare(string? x, string? y)
+        {
+            return NatuerlicheTextReihenfolge.Vergleiche(x, y);
         }
     }
 

@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -235,12 +236,7 @@ namespace Klangkiste
 
             try
             {
-                var serializer = new XmlSerializer(typeof(Sammlung));
-                Sammlung? geladeneSammlung;
-                using (var datei = File.OpenRead(letzte))
-                {
-                    geladeneSammlung = serializer.Deserialize(datei) as Sammlung;
-                }
+                                Sammlung? geladeneSammlung = LadeSammlungAusDatei(letzte);
 
                 if (geladeneSammlung is null || geladeneSammlung.Version != "1.0")
                 {
@@ -611,6 +607,41 @@ namespace Klangkiste
             SpeichereInDatei(offenerSammlungPfad);
         }
 
+                // Liest eine .mcd-Datei und erkennt dabei automatisch GZIP-komprimierte
+        // (neue) und unkomprimierte Klartext-XML (alte) Dateien. Die Erkennung erfolgt
+        // an den GZIP-Magic-Bytes (0x1F 0x8B) am Dateianfang. Dadurch bleiben alte
+        // Sammlungen ohne Neueinlesen lesbar; neu gespeicherte werden komprimiert.
+        private static Sammlung? LadeSammlungAusDatei(string pfad)
+        {
+            var serializer = new XmlSerializer(typeof(Sammlung));
+            var einstellungen = new XmlReaderSettings { CheckCharacters = false };
+
+            using var basis = File.OpenRead(pfad);
+
+            // GZIP? -> erste zwei Bytes prüfen, danach wieder an den Anfang zurücksetzen.
+            bool istGzip = basis.Length >= 2;
+            if (istGzip)
+            {
+                int b0 = basis.ReadByte();
+                int b1 = basis.ReadByte();
+                istGzip = b0 == 0x1F && b1 == 0x8B;
+                basis.Position = 0;
+            }
+
+            if (istGzip)
+            {
+                using var gzip = new GZipStream(basis, CompressionMode.Decompress);
+                using var leser = XmlReader.Create(gzip, einstellungen);
+                return serializer.Deserialize(leser) as Sammlung;
+            }
+
+            // Altes Format: unkomprimierte UTF-8-XML.
+            using (var leser = XmlReader.Create(basis, einstellungen))
+            {
+                return serializer.Deserialize(leser) as Sammlung;
+            }
+        }
+
         private void SpeichereInDatei(string zielpfad)
         {
             try
@@ -620,10 +651,14 @@ namespace Klangkiste
                 var namespaces = new XmlSerializerNamespaces();
                 namespaces.Add(string.Empty, string.Empty);
 
-                var settings = new XmlWriterSettings
+                                var settings = new XmlWriterSettings
                 {
                     Indent = true,
-                    NewLineChars = Environment.NewLine
+                    NewLineChars = Environment.NewLine,
+                    // Fest auf UTF-8 (ohne BOM): Sonderzeichen/Symbole im Pfad/Text (z. B.
+                    // En-Dash, typografisches Apostroph, Emojis) werden so 1:1 geschrieben
+                    // und beim Laden wieder identisch gelesen.
+                    Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
                 };
 
                                 Sammlung exportSammlung = ErzeugePortableKopie(sammlung, Path.GetDirectoryName(zielpfad) ?? AppContext.BaseDirectory);
@@ -632,11 +667,16 @@ namespace Klangkiste
                 // Erst wenn das vollständig und fehlerfrei geklappt hat, wird die Temp-Datei
                 // die echte Zieldatei (ersetzt/umbenannt). Bei einem Fehler bleibt die alte
                 // .mcd dadurch unangetastet – kein Datenverlust mehr durch vorzeitiges Leeren.
-                string tempPfad = zielpfad + ".tmp";
+                                string tempPfad = zielpfad + ".tmp";
                 try
                 {
+                    // GZIP-KOMPRIMIERUNG: Die XML wird gepackt in die .mcd geschrieben
+                    // (Endung bleibt .mcd). Dadurch schrumpft die Datei deutlich. Der Loader
+                    // erkennt GZIP automatisch an den Magic-Bytes (1F 8B) und liest auch
+                    // alte, unkomprimierte .mcd weiter.
                     using (var datei = File.Create(tempPfad))
-                    using (var xml = XmlWriter.Create(datei, settings))
+                    using (var gzip = new GZipStream(datei, CompressionLevel.SmallestSize))
+                    using (var xml = XmlWriter.Create(gzip, settings))
                     {
                         serializer.Serialize(xml, exportSammlung, namespaces);
                     }
@@ -726,13 +766,14 @@ namespace Klangkiste
             return text.ToString();
         }
 
-                // Entfernt ALLES aus einem Text, was dem XML-Serializer Ärger machen könnte.
-                // Bewusst sehr breit ("Whitelist"): Es bleiben nur garantiert harmlose "normale"
-                // Textzeichen erhalten (ASCII-Buchstaben/Ziffern/Satzzeichen, westeuropäische
-                // Akzente, Tab/LF/CR). Emojis, Symbole, Steuerzeichen, unsichtbare Formatzeichen
-                // (z. B. U+200B/BOM), Ersatzzeichen, Surrogate und sonstige Sonder-Codepoints
-                // werden KOMPLETT entfernt (nicht ersetzt) – auch ganze Surrogat-Paare (Emojis),
-                // damit keine halben/kaputten Zeichen übrig bleiben.
+                                // Entfernt aus einem Text NUR die Zeichen, die XML tatsächlich verbietet.
+                // Alles andere – Sonderzeichen, Symbole, En-Dash, typografisches Apostroph,
+                // Emojis, Akzente usw. – bleibt 1:1 erhalten (nichts wird ersetzt/umgeschrieben).
+                // Entfernt werden nur:
+                //   • Steuerzeichen < 0x20 außer Tab/LF/CR (0x09/0x0A/0x0D)
+                //   • U+FFFE und U+FFFF (von XML nicht erlaubt)
+                //   • einzelne (unpaarige) Surrogat-Hälften – die würden beim Kodieren sonst
+                //     als Ersatzzeichen enden. Paarige Surrogate (z. B. Emojis) bleiben komplett.
                 private static string BereinigeXmlText(string? wert)
                 {
                     if (string.IsNullOrEmpty(wert))
@@ -740,30 +781,59 @@ namespace Klangkiste
                         return wert ?? string.Empty;
                     }
 
-                    StringBuilder? bereinigt = null;
-                    for (int i = 0; i < wert.Length; i++)
+                    // Schnelldurchlauf: nichts zu tun? Dann Original zurückgeben (keine Allokation).
+                    int problemIndex = FindeErstesIllegalesZeichen(wert);
+                    if (problemIndex < 0)
+                    {
+                        return wert;
+                    }
+
+                    var bereinigt = new StringBuilder(wert.Length).Append(wert, 0, problemIndex);
+                    for (int i = problemIndex; i < wert.Length; i++)
                     {
                         char c = wert[i];
-                        bool entfernen = IstXmlIllegal(c);
-                        if (entfernen)
+
+                        // Paariges Surrogat (gültiges Zeichen außerhalb der BMP, z. B. Emoji):
+                        // beide Hälften übernehmen.
+                        if (char.IsHighSurrogate(c) && i + 1 < wert.Length && char.IsLowSurrogate(wert[i + 1]))
                         {
-                            // Nur beim allerersten Fund einen Puffer anlegen und den Text bis hierher
-                            // übernehmen. Der Normalfall (kein problematisches Zeichen) bleibt ohne
-                            // Allokation.
-                            bereinigt ??= new StringBuilder(wert.Length).Append(wert, 0, i);
+                            bereinigt.Append(c).Append(wert[i + 1]);
+                            i++;
                             continue;
                         }
 
-                        bereinigt?.Append(c);
+                        if (!IstXmlIllegal(c))
+                        {
+                            bereinigt.Append(c);
+                        }
                     }
 
-                    return bereinigt?.ToString() ?? wert;
+                    return bereinigt.ToString();
                 }
 
-                // True, wenn das Zeichen aus einem XML-Text entfernt werden soll.
-                // Umgesetzt als WHITELIST: Nur bekannte, garantiert harmlose Zeichen bleiben;
-                // ALLES andere (Steuer-/Formatzeichen, Emoji/Symbole, Surrogate, nicht zugeordnete
-                // oder private Codepoints …) gilt als "entfernen".
+                private static int FindeErstesIllegalesZeichen(string wert)
+                {
+                    for (int i = 0; i < wert.Length; i++)
+                    {
+                        char c = wert[i];
+                        if (char.IsHighSurrogate(c) && i + 1 < wert.Length && char.IsLowSurrogate(wert[i + 1]))
+                        {
+                            i++; // gültiges Surrogat-Paar überspringen
+                            continue;
+                        }
+
+                        if (IstXmlIllegal(c))
+                        {
+                            return i;
+                        }
+                    }
+
+                    return -1;
+                }
+
+                // True, wenn das Zeichen in XML nicht vorkommen darf und entfernt werden muss.
+                // Bewusst NUR die echten XML-Verbote (keine engere Whitelist mehr), damit
+                // gültige Unicode-Zeichen im Pfad/Text unverändert bleiben.
                 private static bool IstXmlIllegal(char c)
                 {
                     // Erlaubte Steuerzeichen: Tab, Zeilenumbruch, Wagenrücklauf.
@@ -772,29 +842,28 @@ namespace Klangkiste
                         return false;
                     }
 
-                    // Alle übrigen Steuerzeichen (inkl. DEL 0x7F) entfernen.
+                    // Alle übrigen Steuerzeichen (inkl. DEL 0x7F) sind in XML nicht erlaubt.
                     if (c < 0x20 || c == 0x7F)
                     {
                         return true;
                     }
 
-                    // Basis-ASCII: druckbare Zeichen 0x20–0x7E bleiben.
-                    if (c <= 0x7E)
+                    // U+FFFE und U+FFFF sind nicht erlaubt.
+                    if (c == '\uFFFE' || c == '\uFFFF')
                     {
-                        return false;
+                        return true;
                     }
 
-                    // Latin-1-Bereich (0xA0–0xFF): westeuropäische Buchstaben/Akzente (ä, ö, ü, ß,
-                    // é, ñ …) und das geschützte Leerzeichen bleiben. 0x80–0x9F (C1-Steuerzeichen)
-                    // fliegt raus.
-                    if (c >= 0xA0 && c <= 0xFF)
+                    // Einzelne Surrogat-Hälften (unpaarig) sind ungültig. Paarige Surrogate
+                    // werden vom Aufrufer bereits zusammengefasst und hier gar nicht geprüft.
+                    if (char.IsSurrogate(c))
                     {
-                        return false;
+                        return true;
                     }
 
-                    // Alles Weitere (Emoji, Symbole, Surrogate, Zero-Width/BOM, Ersatzzeichen,
-                    // sonstige Sonder-/Format-Codepoints) entfernen – konservativ "alles raus".
-                    return true;
+                    // Alles andere (Buchstaben, Akzente, Symbole, En-Dash, typografisches
+                    // Apostroph, Emojis, …) bleibt erhalten.
+                    return false;
                 }
 
         // Wendet geänderte Einstellungen (Design, Schrift, Gitternetz, Spalten) an.
@@ -2141,7 +2210,7 @@ namespace Klangkiste
                 }
             }
 
-            // Dateien, die physisch nicht mehr vorhanden sind, aus dem Ordner entfernen.
+                        // Dateien, die physisch nicht mehr vorhanden sind, aus dem Ordner entfernen.
             for (int i = ordner.AudioDateien.Count - 1; i >= 0; i--)
             {
                 AudioDatei datei = ordner.AudioDateien[i];
@@ -2152,7 +2221,39 @@ namespace Klangkiste
                 }
             }
 
+            // Nach dem Abgleich in natürlicher Reihenfolge umsortieren, damit neu hinzugefügte
+            // Dateien nicht hinten angehängt, sondern alphabetisch einsortiert werden – und diese
+            // Reihenfolge so in die .mcd gespeichert wird.
+            if (SortiereAudioDateienListe(ordner.AudioDateien))
+            {
+                geaendert = true;
+            }
+
             return geaendert;
+        }
+
+        // Sortiert eine ObservableCollection<AudioDatei> in-place nach Dateiname (natürliche
+        // Reihenfolge, Sonderzeichen < Ziffern < Buchstaben). Rückgabe true, wenn dabei etwas
+        // verschoben wurde.
+        private static bool SortiereAudioDateienListe(ObservableCollection<AudioDatei> liste)
+        {
+            List<AudioDatei> sortiert = liste
+                .OrderBy(Datei => Datei.Dateiname, NatuerlicherDateiComparer.Instanz)
+                .ToList();
+
+            bool verschoben = false;
+            for (int i = 0; i < sortiert.Count; i++)
+            {
+                AudioDatei datei = sortiert[i];
+                int aktuellerIndex = liste.IndexOf(datei);
+                if (aktuellerIndex != i)
+                {
+                    liste.Move(aktuellerIndex, i);
+                    verschoben = true;
+                }
+            }
+
+            return verschoben;
         }
 
         private void EintragLoeschen_Click(object sender, RoutedEventArgs e)
@@ -2595,12 +2696,7 @@ namespace Klangkiste
 
                     try
                     {
-                        var serializer = new XmlSerializer(typeof(Sammlung));
-                        Sammlung? geladeneSammlung;
-                        using (var datei = File.OpenRead(dialog.FileName))
-                        {
-                            geladeneSammlung = serializer.Deserialize(datei) as Sammlung;
-                        }
+                                                Sammlung? geladeneSammlung = LadeSammlungAusDatei(dialog.FileName);
 
                         if (geladeneSammlung is null || geladeneSammlung.Version != "1.0")
                         {
@@ -2687,7 +2783,11 @@ namespace Klangkiste
                         UnterordnerEinbeziehen = quelle.UnterordnerEinbeziehen
                     };
 
-                    foreach (AudioDatei datei in quelle.AudioDateien)
+                                        // Dateien in natürlicher Reihenfolge (Sonderzeichen < Ziffern < Buchstaben,
+                    // wie in der Dateiliste) in die portable Kopie übernehmen, damit die in der
+                    // .mcd gespeicherte Reihenfolge der Anzeige-Reihenfolge entspricht.
+                                        foreach (AudioDatei datei in quelle.AudioDateien
+                        .OrderBy(Datei => Datei.Dateiname, NatuerlicherDateiComparer.Instanz))
                     {
                         ziel.AudioDateien.Add(new AudioDatei
                         {
@@ -2817,7 +2917,11 @@ namespace Klangkiste
                         ordner.Name = pfad;
                     }
 
-                    foreach (string dateipfad in Directory.EnumerateFiles(pfad))
+                                        // Dateien in natürlicher Reihenfolge einlesen (Sonderzeichen < Ziffern <
+                    // Buchstaben), damit schon die Scan-Reihenfolge der Anzeige entspricht und in
+                    // der .mcd sortiert landet – nicht in der unsortierten Datenträger-Reihenfolge.
+                    foreach (string dateipfad in Directory.EnumerateFiles(pfad)
+                        .OrderBy(Dateipfad => Path.GetFileName(Dateipfad), NatuerlicherDateiComparer.Instanz))
                     {
                         if (!SollDateiEingelesenWerden(Path.GetExtension(dateipfad), dateityp, benutzerdefinierterFilter))
                         {

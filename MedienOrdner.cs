@@ -21,6 +21,13 @@ namespace Klangkiste
                 [XmlIgnore]
         public long GesamtdauerSekunden { get; set; }
 
+                // ---- XML abspecken: nur den Default-Filter weglassen ----
+                // Ist der Filter der Standard "*.*", wird er nicht geschrieben; beim Laden
+                // greift der Feld-Initialisierer erneut (Default "*.*"). Name/Pfad/Dateityp/
+                // UnterordnerEinbeziehen werden bewusst immer geschrieben.
+                public bool ShouldSerializeBenutzerdefinierterFilter() =>
+                    !string.IsNullOrEmpty(BenutzerdefinierterFilter) && BenutzerdefinierterFilter != "*.*";
+
                 public override string ToString() => Name;
 
                 // Ordner-Icon-Glyphe: Stammordner = Festplatte, Unterordner = normaler Ordner.
