@@ -1,6 +1,7 @@
 # Klangkiste
 
 Eine kleine Alternative zur bekannten MPEG Audio Collection, allerdings mit ein paar Erweiterungen.
+
 (An English version—or rather, a translation—is currently being worked on.)
 
 ## Vorschau
